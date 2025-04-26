@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = "7774438388:AAFqNtwBqzwRz55bwHbo5a7J7AcIrd2GoJ8"
 
 # Стоимость подписки в звёздах
-SUBSCRIPTION_PRICE = 788
+SUBSCRIPTION_PRICE = 1
 
 # Настройки базы данных MySQL
 DB_CONFIG = {
