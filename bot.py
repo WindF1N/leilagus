@@ -831,7 +831,7 @@ async def cmd_subscribe(message: Message):
     has_subscription = await check_subscription(user_id)
     if has_subscription:
         await message.answer("У вас уже есть активная подписка. Вы можете делать неограниченное количество расчетов.")
-        else:
+    else:
         await message.answer("Для оформления подписки нажмите на кнопку ниже:", 
                            reply_markup=get_subscription_keyboard())
 
