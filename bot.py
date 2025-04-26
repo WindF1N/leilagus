@@ -833,15 +833,21 @@ async def pre_checkout_query_handler(pre_checkout_query: PreCheckoutQuery):
 
 # Обработчик успешного платежа
 @router.message(F.successful_payment)
-async def successful_payment_handler(message: Message):
+async def successful_payment_handler(message: Message, state: FSMContext):
     payment_info = message.successful_payment
     user_id = message.from_user.id
     
     # Активируем подписку для пользователя
     await activate_subscription(user_id)
     
+    # Устанавливаем состояние выбора специалиста
+    await state.set_state(UserStates.choose_specialist)
+    
+    # Отправляем сообщение с благодарностью и предложением выбрать специалиста
     await message.answer(
-        "Спасибо за оплату! Ваша подписка активирована. Теперь вы можете делать неограниченное количество расчетов."
+        "Спасибо за оплату! Ваша подписка активирована. Теперь вы можете делать неограниченное количество расчетов.\n\n"
+        "Выберите тип просчета:",
+        reply_markup=get_specialists_inline_keyboard()
     )
 
 # Команда для оформления подписки
