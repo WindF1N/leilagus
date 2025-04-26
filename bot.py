@@ -764,7 +764,27 @@ async def subscription(message: Message):
     
     has_subscription = await check_subscription(user_id)
     if has_subscription:
-        await message.answer("У вас есть активная подписка. Вы можете делать неограниченное количество расчетов.")
+        # Получим дату истечения подписки
+        expires_at = None
+        if MYSQL_AVAILABLE and mysql_pool:
+            try:
+                async with mysql_pool.acquire() as conn:
+                    async with conn.cursor() as cursor:
+                        await cursor.execute('SELECT expires_at FROM user_subscriptions WHERE user_id = %s', (user_id,))
+                        result = await cursor.fetchone()
+                        if result:
+                            expires_at = result[0]
+            except Exception as e:
+                logger.error(f"Ошибка при получении срока подписки из БД: {e}")
+                expires_at = memory_user_subscriptions.get(user_id, {}).get('expires_at')
+        else:
+            expires_at = memory_user_subscriptions.get(user_id, {}).get('expires_at')
+            
+        if expires_at:
+            expires_formatted = expires_at.strftime("%d.%m.%Y")
+            await message.answer(f"У вас есть активная подписка до {expires_formatted}. Вы можете делать неограниченное количество расчетов.")
+        else:
+            await message.answer("У вас есть активная подписка. Вы можете делать неограниченное количество расчетов.")
     else:
         await message.answer("У вас нет активной подписки. Для неограниченного доступа оформите подписку.", 
                            reply_markup=get_subscription_keyboard())
