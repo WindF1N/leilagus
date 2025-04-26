@@ -832,7 +832,7 @@ async def pre_checkout_query_handler(pre_checkout_query: PreCheckoutQuery):
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
 # Обработчик успешного платежа
-@router.message(F.content_type == "successful_payment")
+@router.message(F.successful_payment)
 async def successful_payment_handler(message: Message):
     payment_info = message.successful_payment
     user_id = message.from_user.id
