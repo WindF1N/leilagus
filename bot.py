@@ -805,7 +805,9 @@ async def reset(message: Message, state: FSMContext):
 # Команда /info
 @router.message(Command("info"))
 async def info(message: Message):
-    await message.answer("Скоро тут будет информация о проекте. FAQ. Файл от профсоюза осветителей.")
+    await message.answer("""Этот бот предназначен для быстрого расчета стоимости и часов рабочих смен различных технических специалистов киноиндустрии
+
+На данный момент реализованы расчеты для осветителей с учетом прогрессивных переработок согласно стандартам профсоюза от 1 марта 2024 года""")
 
 # Команда /help
 @router.message(Command("help"))
