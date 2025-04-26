@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 try:
     import aiomysql
     MYSQL_AVAILABLE = True
@@ -347,7 +347,7 @@ async def check_subscription(user_id):
 # Функция для активации подписки пользователя
 async def activate_subscription(user_id):
     # Устанавливаем срок действия подписки - 1 месяц от текущей даты
-    expires_at = datetime.now().replace(microsecond=0) + datetime.timedelta(days=30)
+    expires_at = datetime.now().replace(microsecond=0) + timedelta(days=30)
     
     if MYSQL_AVAILABLE and mysql_pool:
         try:
