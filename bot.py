@@ -311,19 +311,44 @@ async def check_subscription(user_id):
         try:
             async with mysql_pool.acquire() as conn:
                 async with conn.cursor() as cursor:
-                    await cursor.execute('SELECT active FROM user_subscriptions WHERE user_id = %s AND active = TRUE', (user_id,))
+                    # Проверяем активность подписки и не истек ли срок её действия
+                    await cursor.execute('''
+                        SELECT active FROM user_subscriptions 
+                        WHERE user_id = %s AND active = TRUE AND 
+                        (expires_at IS NULL OR expires_at > NOW())
+                    ''', (user_id,))
                     result = await cursor.fetchone()
+                    
+                    # Если срок подписки истек, деактивируем её
+                    if not result:
+                        await cursor.execute('''
+                            UPDATE user_subscriptions 
+                            SET active = FALSE 
+                            WHERE user_id = %s AND active = TRUE AND expires_at <= NOW()
+                        ''', (user_id,))
+                    
                     return bool(result)
         except Exception as e:
             logger.error(f"Ошибка при проверке подписки в БД: {e}")
             # Проверяем в памяти если возникла ошибка с БД
-            return memory_user_subscriptions.get(user_id, {}).get('active', False)
+            subscription = memory_user_subscriptions.get(user_id, {})
+            if subscription.get('active') and 'expires_at' in subscription:
+                # Проверяем срок действия подписки
+                return subscription['expires_at'] > datetime.now()
+            return subscription.get('active', False)
     else:
         # Проверяем в памяти
-        return memory_user_subscriptions.get(user_id, {}).get('active', False)
+        subscription = memory_user_subscriptions.get(user_id, {})
+        if subscription.get('active') and 'expires_at' in subscription:
+            # Проверяем срок действия подписки
+            return subscription['expires_at'] > datetime.now()
+        return subscription.get('active', False)
 
 # Функция для активации подписки пользователя
 async def activate_subscription(user_id):
+    # Устанавливаем срок действия подписки - 1 месяц от текущей даты
+    expires_at = datetime.now().replace(microsecond=0) + datetime.timedelta(days=30)
+    
     if MYSQL_AVAILABLE and mysql_pool:
         try:
             async with mysql_pool.acquire() as conn:
@@ -334,17 +359,31 @@ async def activate_subscription(user_id):
                     
                     if result:
                         # Обновляем существующую запись
-                        await cursor.execute('UPDATE user_subscriptions SET active = TRUE WHERE user_id = %s', (user_id,))
+                        await cursor.execute(
+                            'UPDATE user_subscriptions SET active = TRUE, expires_at = %s WHERE user_id = %s', 
+                            (expires_at, user_id)
+                        )
                     else:
                         # Создаем новую запись
-                        await cursor.execute('INSERT INTO user_subscriptions (user_id, active) VALUES (%s, TRUE)', (user_id,))
+                        await cursor.execute(
+                            'INSERT INTO user_subscriptions (user_id, active, expires_at) VALUES (%s, TRUE, %s)', 
+                            (user_id, expires_at)
+                        )
         except Exception as e:
             logger.error(f"Ошибка при активации подписки в БД: {e}")
             # Активируем в памяти если возникла ошибка с БД
-            memory_user_subscriptions[user_id] = {'active': True, 'created_at': datetime.now()}
+            memory_user_subscriptions[user_id] = {
+                'active': True, 
+                'created_at': datetime.now(),
+                'expires_at': expires_at
+            }
     else:
         # Активируем в памяти
-        memory_user_subscriptions[user_id] = {'active': True, 'created_at': datetime.now()}
+        memory_user_subscriptions[user_id] = {
+            'active': True, 
+            'created_at': datetime.now(),
+            'expires_at': expires_at
+        }
 
 # Установка команд для меню
 async def set_bot_commands():
@@ -792,7 +831,7 @@ async def cmd_subscribe(message: Message):
     has_subscription = await check_subscription(user_id)
     if has_subscription:
         await message.answer("У вас уже есть активная подписка. Вы можете делать неограниченное количество расчетов.")
-    else:
+        else:
         await message.answer("Для оформления подписки нажмите на кнопку ниже:", 
                            reply_markup=get_subscription_keyboard())
 
